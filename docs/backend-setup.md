@@ -84,3 +84,12 @@ This deletes all data and generates new keys.
 - The Supabase version is pinned in `backend/setup.sh` (`SUPABASE_REF`).
 - GroupLoop's service selection lives in `backend/compose/` and is enabled through `COMPOSE_FILE` in `backend/supabase/.env` (`sh backend/supabase/run.sh config`).
 - Supabase's `update.sh` has not been tested with GroupLoop's compose files yet.
+
+## Android Message reminder push
+
+For Android push prerequisites, EAS/Firebase credential setup, and troubleshooting, see
+[Push notifications](push-notifications.md). Before users can add Message reminders, configure
+EAS Android FCM v1 credentials, apply all migrations on every backend with `sh backend/migrate.sh`,
+and set `grouploop_android_fcm_v1_configured` in that backend's Vault. This marker is an operator
+attestation, not a credential. Never put FCM, Expo access, or Supabase service-role credentials in
+the app bundle or source control.

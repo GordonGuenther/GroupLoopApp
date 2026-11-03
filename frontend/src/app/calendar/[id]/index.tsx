@@ -16,6 +16,8 @@ import {
   useNotifications,
 } from '@/db/calendar-entries';
 import { useGroups, useUser } from '@/db/groups';
+import { registerAndroidMessagePush } from '@/db/push-notifications';
+import { useBackends } from '@/db/settings';
 import { useTheme } from '@/hooks/use-theme';
 
 const formatTime = (value: string) => new Date(value).toLocaleString();
@@ -26,7 +28,9 @@ export default function CalendarEntryScreen() {
   const entry = useCalendarEntry(id);
   const user = useUser(entry?.backend_id);
   const groups = useGroups();
+  const backends = useBackends();
   const notifications = useNotifications(id);
+  const backend = backends?.backends.find((other) => other.id === entry?.backend_id);
 
   const fullGroupIds = new Set(
     groups?.filter((group) => group.role === 'full').map((group) => group.id)
@@ -105,6 +109,12 @@ export default function CalendarEntryScreen() {
               <NotificationsEditor
                 value={notifications}
                 onChange={(next) => setNotifications(id, entry.backend_id, next)}
+                onEnableMessage={async () => {
+                  if (!backend) {
+                    throw new Error('Connect to this entry’s backend before enabling Message reminders.');
+                  }
+                  await registerAndroidMessagePush(backend);
+                }}
               />
             </View>
           )}

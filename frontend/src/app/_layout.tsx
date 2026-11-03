@@ -1,16 +1,57 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { useEffect } from 'react';
+import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { InvitationPrompt } from '@/components/invitation-prompt';
+import { useMessagePushRegistration } from '@/db/push-notifications';
 import { useSync } from '@/db/sync';
 
 SplashScreen.preventAutoHideAsync();
 
+function useNotificationTapNavigation() {
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    let active = true;
+    let subscription: { remove: () => void } | undefined;
+    let notifications: typeof import('expo-notifications') | undefined;
+
+    const redirect = (response: import('expo-notifications').NotificationResponse) => {
+      const entryId = response.notification.request.content.data?.entryId;
+      if (typeof entryId !== 'string' || entryId.length === 0) return;
+      router.push({ pathname: '/calendar/[id]', params: { id: entryId } });
+      notifications?.clearLastNotificationResponse();
+    };
+
+    import('expo-notifications').then((module) => {
+      if (!active) return;
+      notifications = module;
+      module.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+      const lastResponse = module.getLastNotificationResponse();
+      if (lastResponse) redirect(lastResponse);
+      subscription = module.addNotificationResponseReceivedListener(redirect);
+    });
+
+    return () => {
+      active = false;
+      subscription?.remove();
+    };
+  }, []);
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   useSync();
+  useMessagePushRegistration();
+  useNotificationTapNavigation();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
