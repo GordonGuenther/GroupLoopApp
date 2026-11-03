@@ -109,7 +109,7 @@ The backend is responsible for timing: Android push delivery does not depend on 
   [`010_calendar_message_push.sql:95`](../../backend/migrations/010_calendar_message_push.sql#L95)
 
 - Resolve Expo tickets and receipts; retry transient failures and remove unregistered tokens.
-  [`010_calendar_message_push.sql:261`](../../backend/migrations/010_calendar_message_push.sql#L261)
+  [`010_calendar_message_push.sql:258`](../../backend/migrations/010_calendar_message_push.sql#L258)
 
 **Tap navigation and operations**
 
