@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  version="1.1" baseProfile="full" width="256" height="256" viewBox="0 0 256 256">
+  <title>GroupLoop Logo</title>
+  <defs>
+    <linearGradient id="gradient75" x1="100%" y1="50%" x2="0%" y2="50%">
+      <stop offset="0" stop-color="#000" />
+      <stop offset=".333" stop-color="#fff" />
+      <stop offset="1" stop-color="#fff" />
+    </linearGradient>
+    <linearGradient id="gradient25" x1="100%" y1="50%" x2="0%" y2="50%">
+      <stop offset="0" stop-color="#000" />
+      <stop offset=".667" stop-color="#fff" />
+      <stop offset="1" stop-color="#fff" />
+    </linearGradient>
+    <mask id="mask75" x="0%" y="0%" width="100%" height="100%">
+      <rect x="-45%" y="-45%" width="90%" height="90%" fill="url(#gradient75)" />
+    </mask>
+    <mask id="mask25" x="0" y="0" width="100%" height="100%">
+      <rect x="-50%" y="-50%" width="100%" height="100%" fill="url(#gradient25)" />
+    </mask>
+    <path id="loop" d="M-74,55.177 a36,36 0 1 1 36,-62.354 l84,48.518 a20,20 0 1 0 0,-34.682 a28,28 0 0 1 28,48.518 a36,36 0 0 1 -36,0 l-84,-48.518 a28,28 0 0 0 -28,48.518 z" />
+    <g id="image">
+      <circle cx="128" cy="72" r="16" style="fill:#fff" />
+      <path style="fill:#fff" d="M87.25,114.625 a48,48 0 0 1 81.5,0 l-13.9,8.025 a32,32 0 0 0 -53.7,0 z"/>
+      <circle cx="72" cy="100" r="12" style="fill:#fff" />
+      <circle cx="184" cy="100" r="12" style="fill:#fff" />
+      <use xlink:href="#loop" style="fill:#fff" mask="url(#mask25)" transform="translate(128,128) rotate(180) scale(1,-1)" />
+      <use xlink:href="#loop" style="fill:#fff" mask="url(#mask75)" transform="translate(128,128)"/>
+    </g>
+  </defs>
+  <g>
+    <rect x="8" y="8" rx="56" ry="56" width="240" height="240" style="fill:#f70" />
+    <use xlink:href="#image" />
+  </g>
+</svg>

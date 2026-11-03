@@ -1,0 +1,18 @@
+# AI agent config (local only)
+.claude/
+
+# dependencies
+node_modules/
+
+# env files (keep examples)
+.env
+.env.*
+!.env.example
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# logs
+*.log

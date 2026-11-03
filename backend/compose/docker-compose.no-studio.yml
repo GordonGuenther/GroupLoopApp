@@ -1,0 +1,8 @@
+# GroupLoop minimal variant: also disable the Studio dashboard.
+services:
+  studio:
+    profiles: [disabled]
+  meta:
+    profiles: [disabled]
+  api-gw:
+    depends_on: !reset {}

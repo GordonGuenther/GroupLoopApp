@@ -1,0 +1,21 @@
+# GroupLoop: sign-in emails carry a one-time code the user types into the app,
+# invitation emails explain how to connect the app to this backend.
+# GoTrue only loads templates over HTTP, so a small web server serves them.
+services:
+  email-templates:
+    container_name: supabase-email-templates
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    volumes:
+      - ../compose/email-templates:/usr/share/nginx/html:ro,z
+  auth:
+    depends_on:
+      email-templates:
+        condition: service_started
+    environment:
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Your GroupLoop sign-in code
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Your GroupLoop sign-in code
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://email-templates/sign-in.html
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://email-templates/sign-in.html
+      GOTRUE_MAILER_SUBJECTS_INVITE: You're invited to a GroupLoop group
+      GOTRUE_MAILER_TEMPLATES_INVITE: http://email-templates/invite.html

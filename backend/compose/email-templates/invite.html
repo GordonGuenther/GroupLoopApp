@@ -1,0 +1,14 @@
+<h2>You're invited to {{ .Data.group_name }}</h2>
+<p>{{ .Data.invited_by }} invited you to the group <strong>{{ .Data.group_name }}</strong> on GroupLoop.</p>
+<p>To join:</p>
+<ol>
+  <li>Install the GroupLoop app{{ if .Data.web_url }} or open the web app at <a href="{{ .Data.web_url }}">{{ .Data.web_url }}</a>{{ end }}.</li>
+  <li>Open <strong>Profile → Settings</strong> and enter:
+    <ul>
+      <li>Backend URL: <code>{{ .Data.backend_url }}</code></li>
+      <li>API key: <code style="word-break: break-all">{{ .Data.api_key }}</code></li>
+    </ul>
+  </li>
+  <li>Sign in with this email address ({{ .Email }}). The invitation appears right away.</li>
+</ol>
+<p>If you don't want to join, you can ignore this email.</p>

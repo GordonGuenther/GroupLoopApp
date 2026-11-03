@@ -1,0 +1,11 @@
+# GroupLoop: disable Supabase services the app does not use.
+# Services with a profile that is never activated are not started.
+services:
+  storage:
+    profiles: [disabled]
+  imgproxy:
+    profiles: [disabled]
+  functions:
+    profiles: [disabled]
+  supavisor:
+    profiles: [disabled]

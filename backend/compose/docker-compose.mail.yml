@@ -1,0 +1,16 @@
+# GroupLoop dev variant: catch all outgoing email in Inbucket (web UI on :9000).
+# supabase-mail:2500 is the SMTP server Supabase's .env points to by default.
+services:
+  mail:
+    container_name: supabase-mail
+    image: inbucket/inbucket:3.0.3
+    restart: unless-stopped
+    ports:
+      - 9000:9000
+  auth:
+    depends_on:
+      mail:
+        condition: service_started
+    environment:
+      GOTRUE_SMTP_USER: ""
+      GOTRUE_SMTP_PASS: ""
