@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -50,22 +50,38 @@ function Chip({ label, selected, onPress }: ChipProps) {
 
 type NotificationsEditorProps = {
   value: EntryNotification[];
-  onChange: (notifications: EntryNotification[]) => void;
+  onChange: (notifications: EntryNotification[]) => void | Promise<void>;
+  onEnableMessage: () => Promise<void>;
 };
 
 /** The user's own notifications for an entry: a list to remove from, and a row to add one. */
-export function NotificationsEditor({ value, onChange }: NotificationsEditorProps) {
+export function NotificationsEditor({ value, onChange, onEnableMessage }: NotificationsEditorProps) {
   const theme = useTheme();
   const [amount, setAmount] = useState('15');
   const [unitMinutes, setUnitMinutes] = useState(1);
   const [method, setMethod] = useState<NotificationMethod>('message');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
 
-  const valid = /^\d+$/.test(amount);
+  const numericAmount = /^\d+$/.test(amount);
   const minutes = Number(amount) * unitMinutes;
+  const valid =
+    numericAmount && Number.isSafeInteger(minutes) && minutes <= 2_147_483_647;
   const exists = value.some((other) => other.minutes === minutes && other.method === method);
 
-  const add = () =>
-    onChange([...value, { minutes, method }].sort((a, b) => b.minutes - a.minutes));
+  const add = async () => {
+    if (!valid || exists || busy) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      if (method === 'message' && Platform.OS === 'android') await onEnableMessage();
+      await onChange([...value, { minutes, method }].sort((a, b) => b.minutes - a.minutes));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -111,14 +127,24 @@ export function NotificationsEditor({ value, onChange }: NotificationsEditorProp
             onPress={() => setMethod(other.method)}
           />
         ))}
-        <Pressable disabled={!valid || exists} onPress={add}>
+        <Pressable disabled={!valid || exists || busy} onPress={() => void add()}>
           <ThemedView
             type="backgroundSelected"
-            style={[styles.button, (!valid || exists) && styles.disabled]}>
-            <ThemedText type="smallBold">Add</ThemedText>
+            style={[styles.button, (!valid || exists || busy) && styles.disabled]}>
+            <ThemedText type="smallBold">{busy ? 'Checking…' : 'Add'}</ThemedText>
           </ThemedView>
         </Pressable>
       </View>
+      {numericAmount && !valid && (
+        <ThemedText type="small" themeColor="textSecondary">
+          The reminder offset is too large.
+        </ThemedText>
+      )}
+      {error && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {error}
+        </ThemedText>
+      )}
     </View>
   );
 }

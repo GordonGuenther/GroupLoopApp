@@ -24,6 +24,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "color": "#FF7700",
+          "defaultChannel": "calendar-reminders",
+          "enableRemoteNotifications": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FF7700",

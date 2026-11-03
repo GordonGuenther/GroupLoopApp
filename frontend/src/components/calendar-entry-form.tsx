@@ -8,7 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import type { CalendarEntryValues, EntryNotification } from '@/db/calendar-entries';
+import { registerAndroidMessagePush } from '@/db/push-notifications';
 import { useGroups } from '@/db/groups';
+import { useBackends } from '@/db/settings';
 import { useTheme } from '@/hooks/use-theme';
 
 const HOUR = 60 * 60 * 1000;
@@ -41,6 +43,7 @@ export function CalendarEntryForm({
   const [notifications, setNotifications] = useState<EntryNotification[]>([]);
 
   const groups = useGroups() ?? [];
+  const backends = useBackends();
   // An entry is saved on one backend, so it is only shared with groups there. Only its creator
   // may move it to another backend.
   const lockedBackendId =
@@ -52,6 +55,17 @@ export function CalendarEntryForm({
   const available = groups.filter(
     (group) => !lockedBackendId || group.backend_id === lockedBackendId
   );
+  const reminderBackendId =
+    backendId ??
+    groups.find((group) => groupIds.includes(group.id))?.backend_id ??
+    backends?.defaultId;
+  const enableMessage = async () => {
+    const backend = backends?.backends.find((other) => other.id === reminderBackendId);
+    if (!backend) {
+      throw new Error('Connect and sign in to a backend before enabling Message reminders.');
+    }
+    await registerAndroidMessagePush(backend);
+  };
   // Only full members may add or remove a group.
   const writable = available.filter(
     (group) => group.role === 'full' || (isCreator && initial?.groupIds.includes(group.id))
@@ -135,7 +149,11 @@ export function CalendarEntryForm({
         {!initial && (
           <>
             <ThemedText type="smallBold">My notifications</ThemedText>
-            <NotificationsEditor value={notifications} onChange={setNotifications} />
+            <NotificationsEditor
+              value={notifications}
+              onChange={setNotifications}
+              onEnableMessage={enableMessage}
+            />
           </>
         )}
 

@@ -5,6 +5,7 @@ import {
 } from 'rxdb/plugins/replication-supabase';
 
 import { getClient, useSessions } from '@/auth';
+import { unregisterAndroidMessagePush } from '@/db/push-notifications';
 
 import { getDatabase, REMOVED_BACKEND_ID } from './database';
 import { type Backend, useBackends } from './settings';
@@ -95,6 +96,11 @@ export function useSync() {
 export async function disconnect(backend: Backend) {
   // Stop syncing first, so the local wipe does not reach the backend.
   await cancel(backend.id);
+  try {
+    await unregisterAndroidMessagePush(backend);
+  } catch (error) {
+    console.warn(`Could not remove push registration from ${backend.name}:`, error);
+  }
   await getClient(backend).auth.signOut();
   const db = await getDatabase();
   // Removed documents stay as deleted ones. Moved off the backend first, no replication
