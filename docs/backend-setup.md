@@ -87,9 +87,13 @@ This deletes all data and generates new keys.
 
 ## Android Message reminder push
 
-For Android push prerequisites, EAS/Firebase credential setup, and troubleshooting, see
-[Push notifications](push-notifications.md). Before users can add Message reminders, configure
-EAS Android FCM v1 credentials, apply all migrations on every backend with `sh backend/migrate.sh`,
-and set `grouploop_android_fcm_v1_configured` in that backend's Vault. This marker is an operator
-attestation, not a credential. Never put FCM, Expo access, or Supabase service-role credentials in
-the app bundle or source control.
+The GroupLoop Android app, EAS project, and Firebase FCM v1 credential are configured and released
+centrally; self-hosting operators do not build a separate app. For every independent backend that
+should send reminders, its operator applies migrations with `sh backend/migrate.sh` and sets
+`grouploop_android_fcm_v1_configured` in that backend's Vault after central push setup is complete.
+If Expo Push Service access-token authentication is enabled centrally, the operator also stores the
+provided project access token in that backend's Vault. Each backend independently stores its users'
+device registrations and sends its own reminder pushes. See
+[Push notifications](push-notifications.md) for the central-versus-backend checklist and
+troubleshooting. Never put FCM, Expo access, or Supabase service-role credentials in the app bundle
+or source control.

@@ -4,76 +4,95 @@ GroupLoop delivers **Message** reminders as Android push notifications, so remin
 depend on GroupLoop running in the background. **Alarm** reminders are not sent as push notifications.
 iOS and web notification behavior is unchanged.
 
-## Requirements before enabling Message
+## Deployment model: one app, independently hosted backends
 
-Push delivery requires all of the following; this repository does not contain an EAS project ID or
-Firebase credentials:
+The GroupLoop app is centrally maintained and released. Self-hosting operators run their own
+backend; they do **not** create an EAS project, configure Firebase, build, or distribute a separate
+app. All supported installations use the centrally released Android app, one EAS project, and the
+matching Firebase Android app/FCM credentials.
 
-1. An EAS project ID in the Expo app configuration at `extra.eas.projectId`.
-2. A Firebase Android app for `de.clover1.grouploop` and its `google-services.json` path configured
-   with `android.googleServicesFile`.
-3. Android FCM v1 credentials configured for that EAS project.
-4. Migration `010_calendar_message_push.sql` applied to each Supabase backend used by the app.
-5. The FCM readiness marker set in Vault on each backend (see below).
-6. A custom Android development or release build made after installing `expo-notifications` and
-   configuring the plugin. Expo Go does not support remote push notifications on Android.
+A user can connect the same app to multiple independent backends. The app registers that
+installation's Expo push token separately with each signed-in backend where the user's settings
+include a Message reminder. Each backend stores its own registrations and reminder deliveries, and
+independently sends due pushes through Expo Push Service to the same centrally configured app. The
+backend's calendar data and reminder settings stay on that backend.
 
-Set up the EAS project and FCM v1 credentials using the
-[Expo push setup guide](https://docs.expo.dev/push-notifications/push-notifications-setup/) and
-[FCM v1 credential guide](https://docs.expo.dev/push-notifications/fcm-credentials/). These external
-steps have not been performed for this repository:
+| Done once by the central app publisher | Done by each backend operator |
+|---|---|
+| Create/link the app's EAS project and set its project ID in the app config. | Apply migration `010_calendar_message_push.sql` to the backend. |
+| Configure the Firebase Android app for `de.clover1.grouploop` and its FCM v1 credential in that EAS project. | Set the backend's FCM readiness marker in Vault after central push setup is complete. |
+| Configure and release the Android app with `expo-notifications`. | If Expo Push Service access-token authentication is enabled centrally, securely configure that project's access token in this backend's Vault. |
+| Keep the EAS/Firebase project and credentials available for future app releases and push delivery. | Keep the backend's Supabase `pg_cron`/`pg_net` services operational and monitor its delivery records. |
 
-1. Sign in to EAS and create/link this app's EAS project (for example, `npx eas-cli@latest init`).
-   Use the generated project UUID; do not invent or reuse an ID from another app.
+Operators do not need the Firebase service-account key. An Expo Push Service access token, when
+used, is a separate optional server-side secret; it is not the FCM credential.
+
+## Central setup (app publisher, once)
+
+The EAS project ID and Firebase credentials have not been provisioned for this repository. The app
+publisher must complete these steps before releasing an Android build with push support:
+
+1. Sign in to EAS and create/link the GroupLoop app's EAS project (for example,
+   `npx eas-cli@latest init`). Use the generated project UUID; do not invent or reuse an ID from
+   another app. Configure it as `extra.eas.projectId`.
 2. In Firebase, create/configure an Android app with the existing application ID
    `de.clover1.grouploop`. Download its `google-services.json` and configure its path using
    `android.googleServicesFile` in `frontend/app.json`. This file has public-facing app identifiers;
-   apply your project's source-control policy before adding it.
+   apply the project's source-control policy before adding it.
 3. Upload the Firebase service-account private key to the EAS project's Android FCM v1 credentials
-   using `npx eas-cli@latest credentials` or the Expo dashboard. Keep that private-key JSON, Expo
-   access tokens, and Supabase service-role keys out of source control and the JavaScript bundle.
+   using `npx eas-cli@latest credentials` or the Expo dashboard.
+4. Build and distribute a new Android app version with the notification plugin/channel configured.
+   Expo Go does not support remote push notifications on Android.
 
-Once FCM is configured in EAS, an administrator must mark **each** Supabase backend ready:
+Use the [Expo push setup guide](https://docs.expo.dev/push-notifications/push-notifications-setup/)
+and [FCM v1 credential guide](https://docs.expo.dev/push-notifications/fcm-credentials/). The
+notification plugin and Android channel are native build configuration: after changing them, a new
+centrally distributed native build is required; an OTA JavaScript update is not enough. Backend
+operators do not make this app build.
 
-```sql
-select public.set_backend_secret('grouploop_android_fcm_v1_configured', 'true');
-```
+Keep the Firebase service-account private key, Expo access tokens, and Supabase service-role keys
+out of source control and the JavaScript bundle.
 
-This marker is an operator attestation that the Android FCM v1 credential has been configured; it
-does not contain that credential. The registration RPC rejects tokens until the marker is present.
-If an Expo Push Service access token is enabled for the EAS project, store it server-side only:
+## Setup on each self-hosted backend
 
-```sql
-select public.set_backend_secret('grouploop_expo_push_access_token', '<server-only Expo access token>');
-```
+Complete these steps separately for every Supabase backend that should send reminders:
 
-The access token is optional. Never add either value to the app config, `.env` files tracked by Git,
-or the JavaScript bundle.
+1. From the repository root, apply migrations to that backend:
 
-## Build and rollout
+   ```sh
+   sh backend/migrate.sh
+   ```
 
-From `frontend/`, install the SDK-compatible package and create a fresh native build after adding
-the real EAS project ID and Firebase `google-services.json` configuration:
+   Migration `010_calendar_message_push.sql` creates private token storage, an idempotent delivery
+   outbox, and a one-minute `pg_cron` job that calls Expo Push Service through `pg_net`. It does not
+   expose device tokens or delivery records to authenticated users or RxDB replication. The backend
+   must have the Supabase `pg_cron` and `pg_net` services available.
+2. After the central app publisher has configured EAS/Firebase FCM v1 and released the push-enabled
+   app, mark this backend ready in its Vault:
 
-```sh
-npx expo install expo-notifications
-npx expo run:android
-```
+   ```sql
+   select public.set_backend_secret('grouploop_android_fcm_v1_configured', 'true');
+   ```
 
-For EAS builds, build a new Android development or release binary after the EAS project and FCM
-credentials are configured. The notification config plugin and Android channel are native build
-configuration; an OTA JavaScript update alone cannot add them to an already installed binary.
+   This marker is only an operator attestation for this backend; it does not contain or validate
+   the Firebase credential. The authenticated token-registration RPC rejects registrations until
+   the marker is present.
+3. If Expo Push Service access-token authentication is enabled for the central EAS project, obtain
+   that project's access token from the app publisher over a secure channel and store it only in
+   this backend's Vault:
 
-From the repository root, apply database changes to every backend with:
+   ```sql
+   select public.set_backend_secret('grouploop_expo_push_access_token', '<server-only Expo access token>');
+   ```
 
-```sh
-sh backend/migrate.sh
-```
+   This access token is optional and is not the Firebase service-account key. Never put it in app
+   config, tracked `.env` files, or the JavaScript bundle.
+4. Confirm the migration and scheduled job are active on this backend. Users signed in to it can
+   then add Message reminders; the app registers tokens with that backend automatically when
+   needed. Repeat for every independent backend.
 
-The migration creates owner-private token storage, an idempotent delivery outbox, and a one-minute
-`pg_cron` job that calls Expo Push Service through `pg_net`. It does not expose device tokens or
-delivery records to authenticated users or RxDB replication. Existing reminder settings remain
-per-user and per-backend.
+Reminder settings remain per-user and per-backend. Each backend queues and sends only the reminders
+stored there; connecting another backend does not move or expose this backend's calendar data.
 
 ## Permission and behavior
 
@@ -95,17 +114,22 @@ longer has access, the app shows its normal missing-entry state.
 
 ## Troubleshooting
 
-- **No EAS project ID:** set the real `extra.eas.projectId` created for this app in the Expo app
-  config, then rebuild. Do not copy an ID from another project.
-- **Android push is not configured on this backend:** set up FCM v1 credentials in EAS, apply the
-  migration, then set the backend readiness marker above.
+- **No EAS project ID or FCM setup:** this is central app-publisher configuration, not a
+  per-backend task. Configure the GroupLoop EAS/Firebase project and publish a new app build.
+- **Message reminders are disabled on one backend:** that backend's operator must apply the
+  migration and set its Vault readiness marker. The operator does not configure a separate EAS or
+  Firebase project.
+- **Several backends are connected:** each backend needs its own migration and readiness marker.
+  The app registers with each signed-in backend that has Message reminders; check each backend's
+  delivery table independently.
 - **Migration RPC is missing:** apply `sh backend/migrate.sh` on that backend and restart the app.
 - **Permission is denied:** enable GroupLoop notifications in Android system settings, then add the
   Message reminder again.
 - **Push was queued but not received:** inspect `calendar_message_push_deliveries` on the backend
   for `status`, `attempts`, `receipt_attempts`, and `last_error`. A status of `sent` means Expo
   confirmed handoff to Android's push service, not that Android displayed the notification. Check
-  Android notification settings and the FCM credential in EAS.
+  Android notification settings, that backend's Vault access token if Expo token authentication is
+  enabled, and the central EAS project's FCM credential.
 - **Retry a corrected, permanently failed delivery:** after correcting the credential or backend
   issue, an administrator can reset only the affected rows:
 
