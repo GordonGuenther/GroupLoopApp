@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   type ScrollViewInstance,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,6 +32,8 @@ export default function CalendarScreen() {
   const entries = useCalendarEntries();
   const groups = useGroups();
   const [now, setNow] = useState<number>();
+  const topScrollOffset =
+    Platform.OS === 'web' ? Spacing.six + Spacing.two : safeAreaInsets.top + Spacing.two;
   const scrollViewRef = useRef<ScrollViewInstance | null>(null);
   const containerTop = useRef(0);
   const listTop = useRef(0);
@@ -59,11 +62,14 @@ export default function CalendarScreen() {
     }
 
     scrollView.scrollTo({
-      y: containerTop.current + listTop.current + nextEntryTop.current,
+      y: Math.max(
+        0,
+        containerTop.current + listTop.current + nextEntryTop.current - topScrollOffset
+      ),
       animated: false,
     });
     hasScrolled.current = true;
-  }, [nextEntryId]);
+  }, [nextEntryId, topScrollOffset]);
 
   useEffect(() => {
     if (nextEntryId !== undefined) {
@@ -83,7 +89,7 @@ export default function CalendarScreen() {
     },
     web: {
       paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
+      paddingBottom: Spacing.six,
     },
   });
 
@@ -112,7 +118,6 @@ export default function CalendarScreen() {
           }}>
           <ThemedView style={styles.titleContainer}>
             <ThemedText type="subtitle">Calendar</ThemedText>
-            {Platform.OS === 'web' && <AddEntryButton href="/calendar/add" label="New entry" />}
           </ThemedView>
 
           <ThemedView
@@ -175,6 +180,11 @@ export default function CalendarScreen() {
           bottom={Platform.OS === 'android' ? Spacing.four : insets.bottom}
         />
       )}
+      {Platform.OS === 'web' && (
+        <View pointerEvents="box-none" style={styles.webAction}>
+          <AddEntryButton href="/calendar/add" label="New entry" />
+        </View>
+      )}
     </>
   );
 }
@@ -182,6 +192,12 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
+  },
+  webAction: {
+    position: 'absolute',
+    right: Spacing.four,
+    bottom: Spacing.four,
+    zIndex: 1,
   },
   contentContainer: {
     flexDirection: 'row',
